@@ -21,7 +21,7 @@ const createStateFromDish = (dish) => ({
       : [emptyIngredient()],
 })
 
-export function AddDishForm({ mode = 'create', initialDish = null, onSave, onCancel }) {
+export function AddDishForm({ mode = 'create', initialDish = null, onSave, onCancel, isSaving = false }) {
   const [form, setForm] = useState(createStateFromDish(initialDish))
   const [imageError, setImageError] = useState(null)
 
@@ -65,7 +65,7 @@ export function AddDishForm({ mode = 'create', initialDish = null, onSave, onCan
     const newDish = {
       id: mode === 'edit' && initialDish ? initialDish.id : nanoid(),
       ...form,
-      ingredients: cleanedIngredients.length ? cleanedIngredients : [emptyIngredient()],
+      ingredients: cleanedIngredients,
     }
 
     onSave(newDish)
@@ -210,11 +210,11 @@ export function AddDishForm({ mode = 'create', initialDish = null, onSave, onCan
           </div>
 
           <div className="drawer__actions">
-            <button type="button" className="btn-secondary" onClick={onCancel}>
+            <button type="button" className="btn-secondary" onClick={onCancel} disabled={isSaving}>
               Cancel
             </button>
-            <button type="submit" className="btn-primary">
-              {mode === 'edit' ? 'Save changes' : 'Save dish'}
+            <button type="submit" className="btn-primary" disabled={isSaving}>
+              {mode === 'edit' ? (isSaving ? 'Saving…' : 'Save changes') : isSaving ? 'Saving…' : 'Save dish'}
             </button>
           </div>
         </form>
@@ -243,4 +243,5 @@ AddDishForm.propTypes = {
   }),
   onSave: PropTypes.func.isRequired,
   onCancel: PropTypes.func.isRequired,
+  isSaving: PropTypes.bool,
 }

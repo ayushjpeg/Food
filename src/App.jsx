@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AddDishForm } from './components/AddDishForm'
 import { MealColumn } from './components/MealColumn'
 import { LogCookForm } from './components/LogCookForm'
 import { PhotoGallery } from './components/PhotoGallery'
-import { defaultDishes, meals } from './data/initialDishes'
-import { useLocalStorage } from './hooks/useLocalStorage'
+import { meals } from './data/initialDishes'
+import { addDishPhoto, createDish, fetchDishes, patchDish, updateDish } from './api/foodApi'
 
 const ensurePhotosArray = (dish) => {
   const photos = Array.isArray(dish.photos) ? dish.photos : []
@@ -23,11 +23,14 @@ const ensurePhotosArray = (dish) => {
 }
 
 function App() {
-  const [dishes, setDishes] = useLocalStorage('food-tracker-dishes', defaultDishes)
+  const [dishes, setDishes] = useState([])
   const [filter, setFilter] = useState('All')
   const [drawerState, setDrawerState] = useState({ mode: null, dish: null })
   const [logDish, setLogDish] = useState(null)
   const [galleryDish, setGalleryDish] = useState(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState(null)
 
   const applyUpdate = (updater) => {
     setDishes((prev) => {
@@ -36,6 +39,23 @@ function App() {
       return next.map(ensurePhotosArray)
     })
   }
+
+  const loadDishes = async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const data = await fetchDishes()
+      setDishes(data.map(ensurePhotosArray))
+    } catch (err) {
+      setError(err.message || 'Unable to load dishes')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadDishes()
+  }, [])
 
   const normalizedDishes = useMemo(() => dishes.map(ensurePhotosArray), [dishes])
 
@@ -56,14 +76,23 @@ function App() {
     return { total: normalizedDishes.length, perMeal }
   }, [normalizedDishes])
 
-  const handleSaveDish = (dish) => {
-    const prepared = ensurePhotosArray(dish)
-    if (drawerState.mode === 'edit' && drawerState.dish) {
-      applyUpdate((prev) => prev.map((item) => (item.id === prepared.id ? prepared : item)))
-    } else {
-      applyUpdate((prev) => [prepared, ...prev])
+  const handleSaveDish = async (dish) => {
+    setIsSaving(true)
+    setError(null)
+    try {
+      if (drawerState.mode === 'edit' && drawerState.dish) {
+        const updated = await updateDish({ ...dish, id: drawerState.dish.id })
+        applyUpdate((prev) => prev.map((item) => (item.id === updated.id ? updated : item)))
+      } else {
+        const created = await createDish(dish)
+        applyUpdate((prev) => [created, ...prev])
+      }
+      setDrawerState({ mode: null, dish: null })
+    } catch (err) {
+      setError(err.message || 'Unable to save dish')
+    } finally {
+      setIsSaving(false)
     }
-    setDrawerState({ mode: null, dish: null })
   }
 
   const openCreateDrawer = () => setDrawerState({ mode: 'create', dish: null })
@@ -75,24 +104,31 @@ function App() {
   const openLogCook = (dish) => setLogDish(dish)
   const closeLogCook = () => setLogDish(null)
 
-  const handleSaveCook = ({ dishId, entry }) => {
-    applyUpdate((prev) =>
-      prev.map((item) =>
-        item.id === dishId
-          ? {
-              ...item,
-              lastMade: entry.recordedAt,
-              image: entry.url,
-              photos: [...(item.photos ?? []), entry],
-            }
-          : item
-      )
-    )
-    closeLogCook()
+  const handleSaveCook = async ({ dishId, entry }) => {
+    setIsSaving(true)
+    setError(null)
+    try {
+      const updated = await addDishPhoto(dishId, entry)
+      applyUpdate((prev) => prev.map((item) => (item.id === updated.id ? updated : item)))
+      closeLogCook()
+    } catch (err) {
+      setError(err.message || 'Unable to log cook')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
-  const handleUpdateLastMade = (dishId, date) => {
-    applyUpdate((prev) => prev.map((item) => (item.id === dishId ? { ...item, lastMade: date } : item)))
+  const handleUpdateLastMade = async (dishId, date) => {
+    setIsSaving(true)
+    setError(null)
+    try {
+      const updated = await patchDish(dishId, { lastMade: date })
+      applyUpdate((prev) => prev.map((item) => (item.id === updated.id ? updated : item)))
+    } catch (err) {
+      setError(err.message || 'Unable to update date')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const openGallery = (dish) => setGalleryDish(dish)
@@ -121,6 +157,9 @@ function App() {
           ))}
         </div>
       </header>
+
+      {error && <div className="field-error">{error}</div>}
+      {isLoading && <p className="subtitle">Loading dishes...</p>}
 
       <section className="controls">
         <div className="chip-group">
@@ -164,11 +203,13 @@ function App() {
           initialDish={drawerState.dish}
           onSave={handleSaveDish}
           onCancel={closeDrawer}
+          isSaving={isSaving}
         />
       )}
-      {logDish && <LogCookForm dish={logDish} onSave={handleSaveCook} onCancel={closeLogCook} />}
+      {logDish && <LogCookForm dish={logDish} onSave={handleSaveCook} onCancel={closeLogCook} isSaving={isSaving} />}
       {galleryDish && <PhotoGallery dish={galleryDish} onClose={closeGallery} />}
     </div>
-  )}
+  )
+}
 
 export default App

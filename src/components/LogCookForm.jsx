@@ -4,7 +4,7 @@ import { useState } from 'react'
 
 const todayISO = () => new Date().toISOString().slice(0, 10)
 
-export function LogCookForm({ dish, onSave, onCancel }) {
+export function LogCookForm({ dish, onSave, onCancel, isSaving = false }) {
   const [photoUrl, setPhotoUrl] = useState('')
   const [caption, setCaption] = useState('')
   const [date, setDate] = useState(todayISO())
@@ -82,11 +82,11 @@ export function LogCookForm({ dish, onSave, onCancel }) {
           {error && <p className="field-error">{error}</p>}
 
           <div className="drawer__actions">
-            <button type="button" className="btn-secondary" onClick={onCancel}>
+            <button type="button" className="btn-secondary" onClick={onCancel} disabled={isSaving}>
               Cancel
             </button>
-            <button type="submit" className="btn-primary">
-              Save photo
+            <button type="submit" className="btn-primary" disabled={isSaving}>
+              {isSaving ? 'Saving…' : 'Save photo'}
             </button>
           </div>
         </form>
@@ -99,4 +99,5 @@ LogCookForm.propTypes = {
   dish: PropTypes.shape({ id: PropTypes.string.isRequired, name: PropTypes.string.isRequired }).isRequired,
   onSave: PropTypes.func.isRequired,
   onCancel: PropTypes.func.isRequired,
+  isSaving: PropTypes.bool,
 }
