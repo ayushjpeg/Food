@@ -2,6 +2,13 @@ const DEFAULT_BASE_URL = 'https://common-backend.ayux.in/api'
 const stripTrailingSlash = (value) => value.replace(/\/$/, '')
 
 const API_BASE_URL = stripTrailingSlash(import.meta.env.VITE_API_BASE_URL || DEFAULT_BASE_URL)
+const API_ORIGIN = (() => {
+  try {
+    return new URL(API_BASE_URL).origin
+  } catch (err) {
+    return ''
+  }
+})()
 const DEFAULT_API_KEY = 'Iloveanna'
 const API_KEY = (() => {
   if (import.meta.env?.VITE_API_KEY) return import.meta.env.VITE_API_KEY
@@ -44,14 +51,21 @@ const mapIngredients = (ingredients = []) => ingredients.map((item) => ({
   amount: item.amount,
 }))
 
+const normalizeMediaUrl = (url = '') => {
+  if (!url) return ''
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url
+  if (API_ORIGIN && url.startsWith('/')) return `${API_ORIGIN}${url}`
+  return url
+}
+
 const fromApiDish = (payload) => {
   const photos = (payload.photos || []).map((photo) => ({
     id: photo.id,
-    url: photo.url || photo.file_path,
+    url: normalizeMediaUrl(photo.url || photo.file_path),
     caption: photo.caption || '',
     recordedAt: photo.recorded_at || (photo.uploaded_at ? photo.uploaded_at.slice(0, 10) : ''),
   }))
-  const cover = payload.image_url || (photos.length ? photos[photos.length - 1].url : '')
+  const cover = normalizeMediaUrl(payload.image_url || (photos.length ? photos[photos.length - 1].url : ''))
   return {
     id: payload.id,
     name: payload.name,
