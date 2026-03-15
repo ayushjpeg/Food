@@ -1,7 +1,7 @@
 const DEFAULT_BASE_URL = 'https://common-backend.ayux.in/api'
 const stripTrailingSlash = (value) => value.replace(/\/$/, '')
 
-const API_BASE_URL = stripTrailingSlash(import.meta.env.VITE_API_BASE_URL || DEFAULT_BASE_URL)
+const API_BASE_URL = stripTrailingSlash(import.meta.env.VITE_BACKEND_URL || DEFAULT_BASE_URL)
 const API_ORIGIN = (() => {
   try {
     return new URL(API_BASE_URL).origin
@@ -9,21 +9,12 @@ const API_ORIGIN = (() => {
     return ''
   }
 })()
-const DEFAULT_API_KEY = 'Iloveanna'
-const API_KEY = (() => {
-  if (import.meta.env?.VITE_API_KEY) return import.meta.env.VITE_API_KEY
-  if (typeof window !== 'undefined' && window.__FOOD_API_KEY__) {
-    return window.__FOOD_API_KEY__
-  }
-  return DEFAULT_API_KEY
-})()
 
 const isDataUrl = (value = '') => value.startsWith('data:')
 const cleanObject = (input) => Object.fromEntries(Object.entries(input || {}).filter(([, value]) => value !== undefined))
 
 const buildHeaders = (body, extraHeaders = {}) => {
   const headers = new Headers(extraHeaders)
-  if (API_KEY) headers.set('X-API-Key', API_KEY)
   if (body && !(body instanceof FormData)) headers.set('Content-Type', 'application/json')
   return headers
 }
